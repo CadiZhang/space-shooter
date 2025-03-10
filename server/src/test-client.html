@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Client</h1>
+    <div>
+        <label for="url">WebSocket URL:</label>
+        <input type="text" id="url" value="ws://localhost:8080" style="width: 300px;">
+        <button id="connect">Connect</button>
+        <button id="disconnect" disabled>Disconnect</button>
+    </div>
+    <div style="margin-top: 10px;">
+        <label for="message">Message:</label>
+        <input type="text" id="message" value='{"type":"create-room"}' style="width: 300px;">
+        <button id="send" disabled>Send</button>
+    </div>
+    <h3>Log:</h3>
+    <div id="log"></div>
+
+    <script>
+        const connectBtn = document.getElementById('connect');
+        const disconnectBtn = document.getElementById('disconnect');
+        const sendBtn = document.getElementById('send');
+        const urlInput = document.getElementById('url');
+        const messageInput = document.getElementById('message');
+        const logDiv = document.getElementById('log');
+        
+        let socket = null;
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        connectBtn.addEventListener('click', () => {
+            const url = urlInput.value;
+            try {
+                log(`Connecting to ${url}...`);
+                socket = new WebSocket(url);
+                
+                socket.onopen = () => {
+                    log('Connection established', 'success');
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    sendBtn.disabled = false;
+                };
+                
+                socket.onmessage = (event) => {
+                    log(`Received: ${event.data}`, 'info');
+                };
+                
+                socket.onclose = (event) => {
+                    log(`Connection closed. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}, Clean: ${event.wasClean}`, event.wasClean ? 'info' : 'error');
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    sendBtn.disabled = true;
+                    socket = null;
+                };
+                
+                socket.onerror = (error) => {
+                    log(`Error: ${error}`, 'error');
+                };
+            } catch (error) {
+                log(`Failed to create WebSocket: ${error}`, 'error');
+            }
+        });
+
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.close();
+                log('Disconnecting...', 'info');
+            }
+        });
+
+        sendBtn.addEventListener('click', () => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const message = messageInput.value;
+                try {
+                    socket.send(message);
+                    log(`Sent: ${message}`, 'info');
+                } catch (error) {
+                    log(`Failed to send message: ${error}`, 'error');
+                }
+            } else {
+                log('Cannot send message: WebSocket is not open', 'error');
+            }
+        });
+    </script>
+</body>
+</html> 
